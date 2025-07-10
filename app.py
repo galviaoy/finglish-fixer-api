@@ -32,14 +32,13 @@ def process_text():
 
     text = data["text"]
     logger.info(f"📥 TEXT: {text}")
-
     results = []
     rules = load_rules()
     logger.info(f"📦 Loaded {len(rules)} rules")
 
     for rule in rules:
-        pattern = rule.get("Regex Pattern")
-        description = rule.get("Sidebar Suggestion Text")
+        pattern = rule.get("Regex Pattern") or rule.get("pattern")
+        description = rule.get("Sidebar Suggestion Text") or rule.get("suggestion")
         if not pattern:
             continue
         logger.info(f"🔍 Checking pattern: {pattern}")
@@ -55,6 +54,7 @@ def process_text():
         except re.error as e:
             logger.warning(f"⚠️ Regex error in pattern: {pattern} — {e}")
             continue
+
 
     logger.info(f"✅ Returning {len(results)} matches")
     return jsonify({"matches": results})
