@@ -21,6 +21,26 @@ def load_rules():
 
 @app.route("/process", methods=["POST"])
 def process_text():
+    data = request.get_json()
+    if not data or "text" not in data:
+        return jsonify({"error": "Missing 'text' in request body"}), 400
+
+    text = data["text"]
+    results = []
+
+    # Test hardcoded regex
+    pattern = r"\bwith a low threshold\b"
+    matches = re.finditer(pattern, text, re.IGNORECASE)
+    for match in matches:
+        results.append({
+            "text": match.group(),
+            "start": match.start(),
+            "end": match.end(),
+            "issue": "matched hardcoded test rule"
+        })
+
+    return jsonify({"matches": results})
+
     print("📥 /process endpoint hit", file=sys.stderr)
     data = request.get_json()
     if not data or "text" not in data:
