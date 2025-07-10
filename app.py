@@ -1,27 +1,26 @@
-# Debug logging for isolated regex test
 from flask import Flask, request, jsonify
 import re
-import sys
+import logging
 
 app = Flask(__name__)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 @app.route("/process", methods=["POST"])
 def process_text():
     data = request.get_json()
-    if not data or "text" not in data:
-        return jsonify({"error": "Missing 'text' in request body"}), 400
+    text = data.get("text", "")
 
-    text = data["text"]
-    print(f"📥 TEXT: {text}", file=sys.stderr)
+    logger.info(f"📥 TEXT: {text}")
 
     results = []
     pattern = r"\bwith a low threshold\b"
 
     try:
         matches = list(re.finditer(pattern, text, re.IGNORECASE))
-        print(f"🔍 FOUND {len(matches)} matches", file=sys.stderr)
+        logger.info(f"🔍 FOUND {len(matches)} matches")
         for match in matches:
-            print(f"✅ MATCH: {match.group()} at {match.start()}–{match.end()}", file=sys.stderr)
+            logger.info(f"✅ MATCH: {match.group()} at {match.start()}–{match.end()}")
             results.append({
                 "text": match.group(),
                 "start": match.start(),
@@ -29,6 +28,6 @@ def process_text():
                 "issue": "matched hardcoded test rule"
             })
     except Exception as e:
-        print(f"❌ Regex error: {e}", file=sys.stderr)
+        logger.error(f"❌ Regex error: {e}")
 
     return jsonify({"matches": results})
