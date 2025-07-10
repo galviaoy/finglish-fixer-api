@@ -35,15 +35,17 @@ def process_text():
 
     results = []
     rules = load_rules()
+    logger.info(f"📦 Loaded {len(rules)} rules")
 
     for rule in rules:
         pattern = rule.get("Regex Pattern")
         description = rule.get("Sidebar Suggestion Text")
         if not pattern:
             continue
+        logger.info(f"🔍 Checking pattern: {pattern}")
         try:
             for match in re.finditer(pattern, text, re.IGNORECASE):
-                logger.info(f"✅ MATCH: {match.group()} from pattern: {pattern}")
+                logger.info(f"✅ MATCH: {match.group()} at {match.start()}–{match.end()}")
                 results.append({
                     "text": match.group(),
                     "start": match.start(),
@@ -51,7 +53,7 @@ def process_text():
                     "issue": description or "Finglish pattern"
                 })
         except re.error as e:
-            logger.warning(f"⚠️ Invalid regex skipped: {pattern} — {e}")
+            logger.warning(f"⚠️ Regex error in pattern: {pattern} — {e}")
             continue
 
     logger.info(f"✅ Returning {len(results)} matches")
