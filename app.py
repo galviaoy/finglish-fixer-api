@@ -47,8 +47,9 @@ def process_text():
         description = rule.get("Sidebar Suggestion Text")
         if not pattern:
             continue
+        print(f"🔍 Checking pattern: {pattern}", file=sys.stderr)
         try:
-            for match in re.finditer(pattern, text):
+            for match in re.finditer(pattern, text, re.IGNORECASE):
                 results.append({
                     "text": match.group(),
                     "start": match.start(),
