@@ -13,7 +13,10 @@ def hello():
 @app.route("/process", methods=["POST"])
 def process_text():
     data = request.get_json()
-    text = data.get("text", "")
+    if not data or "text" not in data:
+        return jsonify({"error": "Missing 'text' in request body"}), 400
+
+    text = data["text"]
     logger.info(f"📥 TEXT: {text}")
 
     results = []
