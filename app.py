@@ -1,3 +1,4 @@
+# Debug logging added 2025-07-10
 from flask import Flask, request, jsonify
 import spacy
 import requests
