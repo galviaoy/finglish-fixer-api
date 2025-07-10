@@ -1,12 +1,9 @@
-# Debug logging added 2025-07-10
+# Debug logging for isolated regex test
 from flask import Flask, request, jsonify
-import spacy
-import requests
 import re
 import sys
 
 app = Flask(__name__)
-nlp = spacy.load("en_core_web_sm")
 
 @app.route("/process", methods=["POST"])
 def process_text():
@@ -15,17 +12,23 @@ def process_text():
         return jsonify({"error": "Missing 'text' in request body"}), 400
 
     text = data["text"]
-    results = []
+    print(f"📥 TEXT: {text}", file=sys.stderr)
 
-    # Test hardcoded regex
+    results = []
     pattern = r"\bwith a low threshold\b"
-    matches = re.finditer(pattern, text, re.IGNORECASE)
-    for match in matches:
-        results.append({
-            "text": match.group(),
-            "start": match.start(),
-            "end": match.end(),
-            "issue": "matched hardcoded test rule"
-        })
+
+    try:
+        matches = list(re.finditer(pattern, text, re.IGNORECASE))
+        print(f"🔍 FOUND {len(matches)} matches", file=sys.stderr)
+        for match in matches:
+            print(f"✅ MATCH: {match.group()} at {match.start()}–{match.end()}", file=sys.stderr)
+            results.append({
+                "text": match.group(),
+                "start": match.start(),
+                "end": match.end(),
+                "issue": "matched hardcoded test rule"
+            })
+    except Exception as e:
+        print(f"❌ Regex error: {e}", file=sys.stderr)
 
     return jsonify({"matches": results})
