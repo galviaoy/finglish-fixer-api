@@ -46,7 +46,7 @@ def process_text():
     for p_idx, para in enumerate(paragraphs):
         for rule in rules:
             pattern = rule.get("Regex Pattern") or rule.get("pattern")
-            description = rule.get("Sidebar Suggestion Text")
+            description = rule.get("Sidebar Suggestion Text") or rule.get("suggestion") or "regex rule"
             if not pattern:
                 continue
 
