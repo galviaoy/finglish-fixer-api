@@ -61,7 +61,8 @@ def process_text():
                         "end": match.end() + sum(len(p) + 1 for p in paragraphs[:p_idx]),
                         "text": match.group(),
                         "issue": suggestion,
-                        "replacement": replacement
+                        "replacement": replacement,
+                        "sidebar": rule.get("sidebar", "")
                     })
 
                     if len(matches) >= offset + limit:
