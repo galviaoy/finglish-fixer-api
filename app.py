@@ -52,15 +52,18 @@ def process_text():
 
             try:
                 for match in re.finditer(pattern, para, re.IGNORECASE):
+                    replacement = rule.get("Replacement Pattern") or rule.get("replacement") or ""
                     results.append({
                         "paragraphIndex": p_idx,
                         "start": match.start(),
                         "end": match.end(),
                         "text": match.group(),
-                        "issue": description or "regex rule"
+                        "issue": description,
+                        "replacement": replacement
                     })
             except re.error as e:
                 logging.warning(f"⚠️ Regex error in pattern: {pattern} — {e}")
+
 
     paged_matches = results[offset:offset+limit]
     logging.info(f"✅ Returning {len(paged_matches)} matches from offset {offset}")
