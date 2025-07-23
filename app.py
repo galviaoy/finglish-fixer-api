@@ -1,60 +1,73 @@
 from flask import Flask, request, jsonify
+import spacy
+import requests
 import re
 import logging
-import requests
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+nlp = spacy.load("en_core_web_sm")
 
-RULES_URL = "https://raw.githubusercontent.com/galviaoy/finglish-fixer-data/main/finglish_fixer_rules.json"
-
-@app.route("/")
-def hello():
-    return "API is alive!"
-
+# Load rules from GitHub
 def load_rules():
+    url = "https://raw.githubusercontent.com/galviaoy/finglish-fixer-data/main/finglish_fixer_rules.json"
     try:
-        response = requests.get(RULES_URL)
+        response = requests.get(url)
         response.raise_for_status()
         rules = response.json()
-        logger.info(f"✅ Loaded {len(rules)} rules from GitHub")
+        logging.info(f"✅ Loaded {len(rules)} rules from GitHub")
         return rules
     except Exception as e:
-        logger.error(f"❌ Failed to load rules: {e}")
+        logging.error(f"❌ Failed to load rules: {e}")
         return []
 
 @app.route("/process", methods=["POST"])
 def process_text():
     data = request.get_json()
-    if not data or "text" not in data:
+    text = data.get("text", "")
+
+    # Validate input
+    if not text:
         return jsonify({"error": "Missing 'text' in request body"}), 400
 
-    text = data["text"]
-    logger.info(f"📥 TEXT: {text}")
-    results = []
+    # Read pagination params from query string
+    try:
+        offset = int(request.args.get("offset", 0))
+        limit = int(request.args.get("limit", 20))
+    except ValueError:
+        offset, limit = 0, 20
+
+    logging.info(f"📥 TEXT: {text[:100]}... (length: {len(text)})")
+    paragraphs = text.split("\n")
     rules = load_rules()
-    logger.info(f"📦 Loaded {len(rules)} rules")
+    logging.info(f"📦 Loaded {len(rules)} rules")
 
-    for rule in rules:
-        pattern = rule.get("Regex Pattern") or rule.get("pattern")
-        description = rule.get("Sidebar Suggestion Text") or rule.get("suggestion")
-        if not pattern:
-            continue
-        logger.info(f"🔍 Checking pattern: {pattern}")
-        try:
-            for match in re.finditer(pattern, text, re.IGNORECASE):
-                logger.info(f"✅ MATCH: {match.group()} at {match.start()}–{match.end()}")
-                results.append({
-                    "text": match.group(),
-                    "start": match.start(),
-                    "end": match.end(),
-                    "issue": description or "Finglish pattern"
-                })
-        except re.error as e:
-            logger.warning(f"⚠️ Regex error in pattern: {pattern} — {e}")
-            continue
+    results = []
+    for p_idx, para in enumerate(paragraphs):
+        for rule in rules:
+            pattern = rule.get("Regex Pattern")
+            description = rule.get("Sidebar Suggestion Text")
+            if not pattern:
+                continue
 
+            try:
+                for match in re.finditer(pattern, para, re.IGNORECASE):
+                    results.append({
+                        "paragraphIndex": p_idx,
+                        "start": match.start(),
+                        "end": match.end(),
+                        "text": match.group(),
+                        "issue": description or "regex rule"
+                    })
+            except re.error as e:
+                logging.warning(f"⚠️ Regex error in pattern: {pattern} — {e}")
 
-    logger.info(f"✅ Returning {len(results)} matches")
-    return jsonify({"matches": results})
+    paged_matches = results[offset:offset+limit]
+    logging.info(f"✅ Returning {len(paged_matches)} matches from offset {offset}")
+
+    return jsonify({
+        "matches": paged_matches,
+        "total": len(results),
+        "offset": offset,
+        "limit": limit
+    })
