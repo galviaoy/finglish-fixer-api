@@ -39,8 +39,14 @@ def process_text():
         if not text:
             return jsonify({"error": "Missing 'text' in request body"}), 400
 
+        logging.info("📥 Text received, length: %d", len(text))
+
         doc = nlp(text)
+        logging.info("🧠 spaCy NLP completed")
+
         sentences = list(doc.sents)
+        logging.info("✂️ Sentences extracted: %d", len(sentences))
+
 
         try:
             offset = int(request.args.get("offset", 0))
@@ -53,6 +59,8 @@ def process_text():
             logging.info(f"✅ Rules cached: {len(app.cached_rules)} rules")
 
         rules = app.cached_rules
+        logging.info(f"📜 Total rules loaded: {len(rules)}")
+
         paragraphs = text.split("\n")
         matches = []
 
