@@ -35,15 +35,14 @@ def process_text():
     except ValueError:
         offset, limit = 0, 20
 
-    # ✅ Load rules once and cache them
     if not hasattr(app, "cached_rules"):
         app.cached_rules = load_rules()
         logging.info(f"✅ Rules cached: {len(app.cached_rules)} rules")
 
     rules = app.cached_rules
     paragraphs = text.split("\n")
-
     matches = []
+
     for p_idx, para in enumerate(paragraphs):
         for rule in rules:
             pattern = rule.get("Regex Pattern") or rule.get("pattern")
@@ -64,21 +63,16 @@ def process_text():
                         "replacement": replacement,
                         "sidebar": rule.get("sidebar", "")
                     })
-
-                    if len(matches) >= offset + limit:
-                        break
             except re.error as e:
                 logging.warning(f"⚠️ Regex error in pattern: {pattern} — {e}")
 
-        if len(matches) >= offset + limit:
-            break
-
     paged_matches = matches[offset:offset + limit]
-    logging.info(f"✅ Returning {len(paged_matches)} matches (offset {offset})")
+    logging.info(f"✅ Returning {len(paged_matches)} of {len(matches)} matches (offset {offset})")
 
     return jsonify({
         "matches": paged_matches,
         "total": len(matches),
         "offset": offset,
-        "limit": limit
+        "limit": limit,
+        "hasMore": offset + limit < len(matches)
     })
