@@ -21,6 +21,15 @@ def load_rules():
         logging.error(f"❌ Failed to load rules: {e}")
         return []
 
+@app.route("/", methods=["GET"])
+def health_check():
+    try:
+        test_doc = nlp("This is a test.")
+        return "spaCy model loaded and working", 200
+    except Exception as e:
+        import traceback
+        return f"❌ spaCy crash:\n{traceback.format_exc()}", 500
+
 @app.route("/process", methods=["POST"])
 def process_text():
     try:
