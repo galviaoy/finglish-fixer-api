@@ -25,6 +25,8 @@ def load_rules():
 def process_text():
     data = request.get_json()
     text = data.get("text", "")
+    doc = nlp(text)
+    sentences = list(doc.sents)
 
     if not text:
         return jsonify({"error": "Missing 'text' in request body"}), 400
@@ -54,14 +56,30 @@ def process_text():
 
             try:
                 for match in re.finditer(pattern, para, re.IGNORECASE):
+                    absolute_start = match.start() + sum(len(p) + 1 for p in paragraphs[:p_idx])
+                    absolute_end = match.end() + sum(len(p) + 1 for p in paragraphs[:p_idx])
+
+                    # Find the sentence that contains the match
+                    sentence_start = 0
+                    sentence_end = len(text)
+                    for sent in sentences:
+                        if sent.start_char <= absolute_start < sent.end_char:
+                            sentence_start = sent.start_char
+                            sentence_end = sent.end_char
+                            break
+
                     matches.append({
                         "paragraphIndex": p_idx,
-                        "start": match.start() + sum(len(p) + 1 for p in paragraphs[:p_idx]),
-                        "end": match.end() + sum(len(p) + 1 for p in paragraphs[:p_idx]),
+                        "start": absolute_start,
+                        "end": absolute_end,
+                        "sentenceStart": sentence_start,
+                        "sentenceEnd": sentence_end,
                         "text": match.group(),
                         "issue": suggestion,
                         "replacement": replacement,
+                        "sidebar": rule.get("sidebar", "")
                     })
+
             except re.error as e:
                 logging.warning(f"⚠️ Regex error in pattern: {pattern} — {e}")
 
