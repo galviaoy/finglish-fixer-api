@@ -36,13 +36,19 @@ def process_text():
         data = request.get_json()
         text = data.get("text", "")
         logging.info("✔️ /process reached and received text input")
+
         if not text:
             return jsonify({"error": "Missing 'text' in request body"}), 400
 
         logging.info("📥 Text received, length: %d", len(text))
 
+        if len(text) > 50000:
+            logging.warning("❌ Document too long (%d characters), skipping processing", len(text))
+            return jsonify({"error": "Document too long for processing"}), 400
+
         doc = nlp(text)
         logging.info("🧠 spaCy NLP completed")
+
 
         sentences = list(doc.sents)
         logging.info("✂️ Sentences extracted: %d", len(sentences))
