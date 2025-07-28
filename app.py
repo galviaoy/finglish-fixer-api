@@ -26,7 +26,7 @@ def process_text():
     try:
         data = request.get_json()
         text = data.get("text", "")
-        raise ValueError("Deliberate test error")
+        logging.info("✔️ /process reached and received text input")
         if not text:
             return jsonify({"error": "Missing 'text' in request body"}), 400
 
