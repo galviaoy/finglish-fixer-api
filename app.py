@@ -23,73 +23,78 @@ def load_rules():
 
 @app.route("/process", methods=["POST"])
 def process_text():
-    data = request.get_json()
-    text = data.get("text", "")
-    doc = nlp(text)
-    sentences = list(doc.sents)
-
-    if not text:
-        return jsonify({"error": "Missing 'text' in request body"}), 400
-
     try:
-        offset = int(request.args.get("offset", 0))
-        limit = int(request.args.get("limit", 20))
-    except ValueError:
-        offset, limit = 0, 20
+        data = request.get_json()
+        text = data.get("text", "")
 
-    if not hasattr(app, "cached_rules"):
-        app.cached_rules = load_rules()
-        logging.info(f"✅ Rules cached: {len(app.cached_rules)} rules")
+        if not text:
+            return jsonify({"error": "Missing 'text' in request body"}), 400
 
-    rules = app.cached_rules
-    paragraphs = text.split("\n")
-    matches = []
+        doc = nlp(text)
+        sentences = list(doc.sents)
 
-    for p_idx, para in enumerate(paragraphs):
-        for rule in rules:
-            pattern = rule.get("Regex Pattern") or rule.get("pattern")
-            suggestion = rule.get("sidebar") or rule.get("Sidebar Suggestion Text") or rule.get("suggestion") or "regex rule"
-            replacement = rule.get("Replacement Pattern") or rule.get("replacement") or ""
+        try:
+            offset = int(request.args.get("offset", 0))
+            limit = int(request.args.get("limit", 20))
+        except ValueError:
+            offset, limit = 0, 20
 
-            if not pattern:
-                continue
+        if not hasattr(app, "cached_rules"):
+            app.cached_rules = load_rules()
+            logging.info(f"✅ Rules cached: {len(app.cached_rules)} rules")
 
-            try:
-                for match in re.finditer(pattern, para, re.IGNORECASE):
-                    absolute_start = match.start() + sum(len(p) + 1 for p in paragraphs[:p_idx])
-                    absolute_end = match.end() + sum(len(p) + 1 for p in paragraphs[:p_idx])
+        rules = app.cached_rules
+        paragraphs = text.split("\n")
+        matches = []
 
-                    # Find the sentence that contains the match
-                    sentence_start = 0
-                    sentence_end = len(text)
-                    for sent in sentences:
-                        if sent.start_char <= absolute_start < sent.end_char:
-                            sentence_start = sent.start_char
-                            sentence_end = sent.end_char
-                            break
+        for p_idx, para in enumerate(paragraphs):
+            for rule in rules:
+                pattern = rule.get("Regex Pattern") or rule.get("pattern")
+                suggestion = rule.get("sidebar") or rule.get("Sidebar Suggestion Text") or rule.get("suggestion") or "regex rule"
+                replacement = rule.get("Replacement Pattern") or rule.get("replacement") or ""
 
-                    matches.append({
-                        "paragraphIndex": p_idx,
-                        "start": absolute_start,
-                        "end": absolute_end,
-                        "sentenceStart": sentence_start,
-                        "sentenceEnd": sentence_end,
-                        "text": match.group(),
-                        "issue": suggestion,
-                        "replacement": replacement,
-                        "sidebar": rule.get("sidebar", "")
-                    })
+                if not pattern:
+                    continue
 
-            except re.error as e:
-                logging.warning(f"⚠️ Regex error in pattern: {pattern} — {e}")
+                try:
+                    for match in re.finditer(pattern, para, re.IGNORECASE):
+                        absolute_start = match.start() + sum(len(p) + 1 for p in paragraphs[:p_idx])
+                        absolute_end = match.end() + sum(len(p) + 1 for p in paragraphs[:p_idx])
 
-    paged_matches = matches[offset:offset + limit]
-    logging.info(f"✅ Returning {len(paged_matches)} of {len(matches)} matches (offset {offset})")
+                        sentence_start = 0
+                        sentence_end = len(text)
+                        for sent in sentences:
+                            if sent.start_char <= absolute_start < sent.end_char:
+                                sentence_start = sent.start_char
+                                sentence_end = sent.end_char
+                                break
 
-    return jsonify({
-        "matches": paged_matches,
-        "total": len(matches),
-        "offset": offset,
-        "limit": limit,
-        "hasMore": offset + limit < len(matches)
-    })
+                        matches.append({
+                            "paragraphIndex": p_idx,
+                            "start": absolute_start,
+                            "end": absolute_end,
+                            "sentenceStart": sentence_start,
+                            "sentenceEnd": sentence_end,
+                            "text": match.group(),
+                            "issue": suggestion,
+                            "replacement": replacement,
+                            "sidebar": rule.get("sidebar", "")
+                        })
+
+                except re.error as e:
+                    logging.warning(f"⚠️ Regex error in pattern: {pattern} — {e}")
+
+        paged_matches = matches[offset:offset + limit]
+        logging.info(f"✅ Returning {len(paged_matches)} of {len(matches)} matches (offset {offset})")
+
+        return jsonify({
+            "matches": paged_matches,
+            "total": len(matches),
+            "offset": offset,
+            "limit": limit,
+            "hasMore": offset + limit < len(matches)
+        })
+
+    except Exception as e:
+        logging.exception("❌ Unhandled error in /process")
+        return jsonify({"error": str(e)}), 500
