@@ -96,5 +96,7 @@ def process_text():
         })
 
     except Exception as e:
-        logging.exception("❌ Unhandled error in /process")
-        return jsonify({"error": str(e)}), 500
+        import traceback
+        trace = traceback.format_exc()
+        logging.error(f"❌ Exception: {e}\n{trace}")
+        return jsonify({"error": str(e), "trace": trace}), 500
