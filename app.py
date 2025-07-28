@@ -42,7 +42,7 @@ def process_text():
 
         logging.info("📥 Text received, length: %d", len(text))
 
-        if len(text) > 50000:
+        if len(text) > 100000:
             logging.warning("❌ Document too long (%d characters), skipping processing", len(text))
             return jsonify({"error": "Document too long for processing"}), 400
 
