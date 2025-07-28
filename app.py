@@ -46,7 +46,7 @@ def process_text():
     for p_idx, para in enumerate(paragraphs):
         for rule in rules:
             pattern = rule.get("Regex Pattern") or rule.get("pattern")
-            suggestion = rule.get("Sidebar Suggestion Text") or rule.get("suggestion") or "regex rule"
+            suggestion = rule.get("sidebar") or rule.get("Sidebar Suggestion Text") or rule.get("suggestion") or "regex rule"
             replacement = rule.get("Replacement Pattern") or rule.get("replacement") or ""
 
             if not pattern:
@@ -61,7 +61,6 @@ def process_text():
                         "text": match.group(),
                         "issue": suggestion,
                         "replacement": replacement,
-                        "sidebar": rule.get("sidebar", "")
                     })
             except re.error as e:
                 logging.warning(f"⚠️ Regex error in pattern: {pattern} — {e}")
