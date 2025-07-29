@@ -2,6 +2,6 @@ services:
   - type: web
     name: finglish-fixer-api
     env: python
-    runtime: python-3.11.6
     buildCommand: pip install -r requirements.txt
     startCommand: python app.py
+    runtime: python-3.11.6
