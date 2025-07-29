@@ -64,8 +64,15 @@ def process_text():
             app.cached_rules = load_rules()
             logging.info(f"✅ Rules cached: {len(app.cached_rules)} rules")
 
+
         rules = app.cached_rules
+        logging.info(f"📡 Rule loading returned: {type(rules)} with length {len(rules)}")
         logging.info(f"📜 Total rules loaded: {len(rules)}")
+        if rules:
+            logging.info(f"🧪 Sample rule pattern: {rules[0].get('Regex Pattern') or rules[0].get('pattern')}")
+        else:
+            logging.warning("⚠️ No rules loaded!")
+
 
         paragraphs = text.split("\n")
         matches = []
@@ -127,3 +134,9 @@ def process_text():
         trace = traceback.format_exc()
         logging.error(f"❌ Exception: {e}\n{trace}")
         return jsonify({"error": str(e), "trace": trace}), 500
+
+if __name__ == "__main__":
+    print("⚙️ Starting Flask app...")
+    app.run(host="0.0.0.0", port=5050, debug=True)
+
+
