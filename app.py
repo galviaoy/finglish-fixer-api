@@ -80,29 +80,33 @@ def process_text():
                     continue
 
                 try:
-                    for match in re.finditer(pattern, para, re.IGNORECASE):
-                        absolute_start = match.start() + sum(len(p) + 1 for p in paragraphs[:p_idx])
-                        absolute_end = match.end() + sum(len(p) + 1 for p in paragraphs[:p_idx])
+                        for match in re.finditer(pattern, para, re.IGNORECASE):
+                            absolute_start = match.start() + sum(len(p) + 1 for p in paragraphs[:p_idx])
+                            absolute_end = match.end() + sum(len(p) + 1 for p in paragraphs[:p_idx])
 
-                        sentence_start = 0
-                        sentence_end = len(text)
-                        for sent in sentences:
-                            if sent.start_char <= absolute_start < sent.end_char:
-                                sentence_start = sent.start_char
-                                sentence_end = sent.end_char
-                                break
+                            sentence_start = 0
+                            sentence_end = len(text)
+                            for sent in sentences:
+                                if sent.start_char <= absolute_start < sent.end_char:
+                                    sentence_start = sent.start_char
+                                    sentence_end = sent.end_char
+                                    break
 
-                        matches.append({
-                            "paragraphIndex": p_idx,
-                            "start": absolute_start,
-                            "end": absolute_end,
-                            "sentenceStart": sentence_start,
-                            "sentenceEnd": sentence_end,
-                            "text": match.group(),
-                            "issue": suggestion,
-                            "replacement": replacement,
-                            "sidebar": rule.get("sidebar", "")
-                        })
+                            kwargs = {
+                                "paragraphIndex": p_idx,
+                                "start": absolute_start,
+                                "end": absolute_end,
+                                "sentenceStart": sentence_start,
+                                "sentenceEnd": sentence_end,
+                                "text": match.group(),
+                                "issue": suggestion,
+                                "sidebar": rule.get("sidebar", "")
+                            }
+
+                            if replacement:
+                                kwargs["replacement"] = replacement
+
+                            matches.append(kwargs)
 
                 except re.error as e:
                     logging.warning(f"⚠️ Regex error in pattern: {pattern} — {e}")
