@@ -75,7 +75,14 @@ def process_text():
 
 
         paragraphs = text.split("\n")
+        paragraph_offsets = []
+        char_count = 0
+        for para in paragraphs:
+            paragraph_offsets.append(char_count)
+            char_count += len(para) + 1  # +1 for newline
+
         matches = []
+
 
         for p_idx, para in enumerate(paragraphs):
             for rule in rules:
@@ -88,8 +95,13 @@ def process_text():
 
                 try:
                         for match in re.finditer(pattern, para, re.IGNORECASE):
-                            absolute_start = match.start() + sum(len(p) + 1 for p in paragraphs[:p_idx])
-                            absolute_end = match.end() + sum(len(p) + 1 for p in paragraphs[:p_idx])
+                            relative_start = match.start()
+                            relative_end = match.end()
+                            para_offset = paragraph_offsets[p_idx]
+                            absolute_start = para_offset + relative_start
+                            absolute_end = para_offset + relative_end
+
+
 
                             sentence_start = 0
                             sentence_end = len(text)
@@ -99,16 +111,19 @@ def process_text():
                                     sentence_end = sent.end_char
                                     break
 
-                            kwargs = {
-                                "paragraphIndex": p_idx,
-                                "start": absolute_start,
-                                "end": absolute_end,
-                                "sentenceStart": sentence_start,
-                                "sentenceEnd": sentence_end,
-                                "text": match.group(),
-                                "issue": suggestion,
-                                "sidebar": rule.get("sidebar", "")
-                            }
+                        kwargs = {
+                            "paragraphIndex": p_idx,
+                            "start": absolute_start,
+                            "end": absolute_end,
+                            "startOffsetInParagraph": relative_start,
+                            "endOffsetInParagraph": relative_end,
+                            "sentenceStart": sentence_start,
+                            "sentenceEnd": sentence_end,
+                            "text": match.group(),
+                            "issue": suggestion,
+                            "sidebar": rule.get("sidebar", "")
+                        }
+
 
                             if replacement:
                                 kwargs["replacement"] = replacement
