@@ -111,24 +111,24 @@ def process_text():
                                     sentence_end = sent.end_char
                                     break
 
-                        kwargs = {
-                            "paragraphIndex": p_idx,
-                            "start": absolute_start,
-                            "end": absolute_end,
-                            "startOffsetInParagraph": relative_start,
-                            "endOffsetInParagraph": relative_end,
-                            "sentenceStart": sentence_start,
-                            "sentenceEnd": sentence_end,
-                            "text": match.group(),
-                            "issue": suggestion,
-                            "sidebar": rule.get("sidebar", "")
-                        }
-
+                            match_data = {
+                                "paragraphIndex": p_idx,
+                                "start": absolute_start,
+                                "end": absolute_end,
+                                "startOffsetInParagraph": relative_start,
+                                "endOffsetInParagraph": relative_end,
+                                "sentenceStart": sentence_start,
+                                "sentenceEnd": sentence_end,
+                                "text": match.group(),
+                                "issue": suggestion,
+                                "sidebar": rule.get("sidebar", "")
+                            }
 
                             if replacement:
-                                kwargs["replacement"] = replacement
+                                match_data["replacement"] = replacement
+                                
+                            matches.append(match_data)
 
-                            matches.append(kwargs)
 
                 except re.error as e:
                     logging.warning(f"⚠️ Regex error in pattern: {pattern} — {e}")
