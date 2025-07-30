@@ -153,6 +153,8 @@ def process_text():
 
         for p_idx, para in enumerate(paragraphs):
             for rule in rules:
+                if rule.get("disabled", False):
+                    continue
                 pattern = rule.get("Regex Pattern") or rule.get("pattern")
                 suggestion = rule.get("sidebar") or rule.get("Sidebar Suggestion Text") or rule.get("suggestion") or "regex rule"
                 replacement = rule.get("Replacement Pattern") or rule.get("replacement") or ""
