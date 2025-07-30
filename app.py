@@ -60,28 +60,24 @@ def detect_they_as_company_spacy(doc):
     issues = []
 
     company_words = {"company", "business", "organisation", "organization", "agency", "firm"}
-    
-    for sent in doc.sents:
+
+    sents = list(doc.sents)
+    for i, sent in enumerate(sents):
         for token in sent:
             if token.text.lower() == "they" and token.dep_ == "nsubj":
-                # Look for a likely company noun in the previous sentence
-                prev = sent.start - 1
-                while prev >= 0 and doc[prev].sent == sent:
-                    prev -= 1  # backtrack to previous sentence
-
-                if prev >= 0:
-                    prev_sent = doc[doc[prev].sent.start:doc[prev].sent.end]
-                    for tok in prev_sent:
-                        if tok.text.lower() in company_words:
-                            issues.append({
-                                "text": sent.text,
-                                "start": token.idx,
-                                "end": token.idx + len(token),
-                                "issue": "We say 'it' rather than 'they' to refer to a company in English.",
-                                "suggestion": sent.text.replace(token.text, "It", 1),
-                                "rule_id": 35
-                            })
-                            break
+                # Look back to previous sentence if there is one
+                if i > 0:
+                    prev_sent = sents[i - 1]
+                    if any(tok.lemma_.lower() in company_words for tok in prev_sent):
+                        issues.append({
+                            "text": sent.text,
+                            "start": token.idx,
+                            "end": token.idx + len(token),
+                            "issue": "We say 'it' rather than 'they' to refer to a company in English.",
+                            "suggestion": sent.text.replace(token.text, "It", 1),
+                            "rule_id": 35
+                        })
+                        break
 
     return issues
 
