@@ -81,6 +81,12 @@ def detect_they_as_company_spacy(doc):
 
     return issues
 
+def debug_sentences(text):
+    doc = nlp(text)
+    print("\n🔍 Sentences as seen by spaCy:")
+    for i, sent in enumerate(doc.sents):
+        print(f"{i}: {sent.text}")
+
 @app.route("/", methods=["GET"])
 def health_check():
     try:
@@ -105,7 +111,7 @@ def process_text():
         if len(text) > 100000:
             logging.warning("❌ Document too long (%d characters), skipping processing", len(text))
             return jsonify({"error": "Document too long for processing"}), 400
-
+        debug_sentences(text)
         doc = nlp(text)
         logging.info("🧠 spaCy NLP completed")
 
