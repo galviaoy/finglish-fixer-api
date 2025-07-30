@@ -98,8 +98,8 @@ def process_text():
             offset, limit = 0, 20
 
         # Force fresh load of rules from GitHub every time (for now)
-            app.cached_rules = load_rules()
-            logging.info(f"✅ Rules cached: {len(app.cached_rules)} rules")
+        app.cached_rules = load_rules()
+        logging.info(f"✅ Rules cached: {len(app.cached_rules)} rules")
 
 
         rules = app.cached_rules
