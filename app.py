@@ -97,7 +97,7 @@ def process_text():
         except ValueError:
             offset, limit = 0, 20
 
-        if not hasattr(app, "cached_rules"):
+        # Force fresh load of rules from GitHub every time (for now)
             app.cached_rules = load_rules()
             logging.info(f"✅ Rules cached: {len(app.cached_rules)} rules")
 
