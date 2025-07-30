@@ -134,7 +134,8 @@ def process_text():
         logging.info(f"✅ Rules cached: {len(app.cached_rules)} rules")
 
 
-        rules = app.cached_rules
+        # 🚧 TEMPORARY: Limit the number of rules to reduce memory usage
+        rules = app.cached_rules[:50]
         logging.info(f"📡 Rule loading returned: {type(rules)} with length {len(rules)}")
         logging.info(f"📜 Total rules loaded: {len(rules)}")
         if rules:
