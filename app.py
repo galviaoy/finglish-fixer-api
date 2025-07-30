@@ -20,6 +20,41 @@ def load_rules():
     except Exception as e:
         logging.error(f"❌ Failed to load rules: {e}")
         return []
+# === Rule 17: Misplaced "also" (spaCy-based) ===
+def detect_misplaced_also_spacy(doc):
+    issues = []
+
+    for sent in doc.sents:
+        main_verb = None
+
+        # Find the ROOT verb that is not a form of 'be'
+        for token in sent:
+            if token.dep_ == "ROOT" and token.pos_ == "VERB" and token.lemma_ != "be":
+                main_verb = token
+                break
+
+        if not main_verb:
+            continue
+
+        for token in sent:
+            if token.text.lower() == "also" and token.i > main_verb.i:
+                # Create a suggested sentence: move "also" before the main verb
+                tokens = [t for t in sent if t != token]
+                insert_index = [i for i, t in enumerate(sent) if t == main_verb][0]
+                tokens.insert(insert_index, token)
+
+                suggestion = "".join(t.text_with_ws for t in tokens).strip()
+
+                issues.append({
+                    "text": sent.text,
+                    "start": token.idx,
+                    "end": token.idx + len(token),
+                    "issue": "‘also’ comes after the main verb. Move ‘also’ before the verb unless it's a form of ‘be’.",
+                    "suggestion": suggestion,
+                    "rule_id": 17
+                })
+
+    return issues
 
 @app.route("/", methods=["GET"])
 def health_check():
@@ -49,6 +84,8 @@ def process_text():
         doc = nlp(text)
         logging.info("🧠 spaCy NLP completed")
 
+        all_issues = []
+        all_issues.extend(detect_misplaced_also_spacy(doc))
 
         sentences = list(doc.sents)
         logging.info("✂️ Sentences extracted: %d", len(sentences))
@@ -132,6 +169,29 @@ def process_text():
 
                 except re.error as e:
                     logging.warning(f"⚠️ Regex error in pattern: {pattern} — {e}")
+                # Include spaCy-based results (e.g. rule 17) in matches
+        for issue in all_issues:
+            # Try to determine paragraph index from sentenceStart
+            p_idx = 0
+            for i, para_offset in enumerate(paragraph_offsets):
+                if issue["start"] >= para_offset:
+                    p_idx = i
+                else:
+                    break
+
+            matches.append({
+                "paragraphIndex": p_idx,
+                "start": issue["start"],
+                "end": issue["end"],
+                "startOffsetInParagraph": issue["start"] - paragraph_offsets[p_idx],
+                "endOffsetInParagraph": issue["end"] - paragraph_offsets[p_idx],
+                "sentenceStart": issue["start"],  # assuming start of sentence is start
+                "sentenceEnd": issue["end"],      # and end of sentence is end
+                "text": issue["text"],
+                "issue": issue["issue"],
+                "sidebar": issue["issue"],
+                "replacement": issue.get("suggestion", "")
+            })
 
         paged_matches = matches[offset:offset + limit]
         logging.info(f"✅ Returning {len(paged_matches)} of {len(matches)} matches (offset {offset})")
