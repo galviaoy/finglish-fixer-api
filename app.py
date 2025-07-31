@@ -104,6 +104,7 @@ def health_check():
 
 @app.route("/process", methods=["POST"])
 def process_text():
+    logging.info("🚀 process_text() endpoint hit")
     try:
         data = request.get_json()
         text = data.get("text", "")
