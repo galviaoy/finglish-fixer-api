@@ -135,8 +135,8 @@ def process_text():
         if len(text) > 100000:
             logging.warning("❌ Document too long (%d characters), skipping processing", len(text))
             return jsonify({"error": "Document too long for processing"}), 400
-        debug_sentences(text)
-        doc = nlp(text)
+        debug_sentences(text_chunk)
+        doc = nlp(text_chunk)
         logging.info("🧠 spaCy NLP completed")
 
         all_issues = []
