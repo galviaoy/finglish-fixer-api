@@ -57,10 +57,7 @@ def detect_misplaced_also_spacy(doc):
     return issues
 
 def detect_they_as_company_spacy(doc):
-    issues = []
-    company_words = {"company", "business", "organisation", "organization", "agency", "firm"}
-
-    sents = list(doc.sents)
+    
     for i, sent in enumerate(sents):
         for token in sent:
             if token.text.lower() == "they" and token.dep_ == "nsubj":
@@ -270,19 +267,17 @@ def process_text():
 
             matches.append({
                 "paragraphIndex": p_idx,
-                "start": start_char + issue["start"],
-                "end": start_char + issue["end"],
+                "start": issue["start"],
+                "end": issue["end"],
                 "startOffsetInParagraph": issue["start"] - paragraph_offsets[p_idx],
                 "endOffsetInParagraph": issue["end"] - paragraph_offsets[p_idx],
-                "sentenceStart": start_char + issue["start"],
-                "sentenceEnd": start_char + issue["end"],
+                "sentenceStart": issue["start"],
+                "sentenceEnd": issue["end"],
                 "text": issue["text"],
                 "issue": issue["issue"],
                 "sidebar": issue["issue"],
                 "replacement": issue.get("suggestion", "")
             })
-
-
 
         paged_matches = matches[offset:offset + limit]
         logging.info(f"✅ Returning {len(paged_matches)} of {len(matches)} matches (offset {offset})")
