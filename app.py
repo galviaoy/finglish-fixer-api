@@ -261,7 +261,6 @@ def process_text():
                     logging.warning(f"⚠️ Regex error in pattern: {pattern} — {e}")
                 # Include spaCy-based results (e.g. rule 17) in matches
         for issue in all_issues:
-            # Try to determine paragraph index from sentenceStart
             p_idx = 0
             for i, para_offset in enumerate(paragraph_offsets):
                 if issue["start"] >= para_offset:
@@ -271,17 +270,19 @@ def process_text():
 
             matches.append({
                 "paragraphIndex": p_idx,
-                "start": issue["start"],
-                "end": issue["end"],
+                "start": start_char + issue["start"],
+                "end": start_char + issue["end"],
                 "startOffsetInParagraph": issue["start"] - paragraph_offsets[p_idx],
                 "endOffsetInParagraph": issue["end"] - paragraph_offsets[p_idx],
-                "sentenceStart": issue["start"],  # assuming start of sentence is start
-                "sentenceEnd": issue["end"],      # and end of sentence is end
+                "sentenceStart": start_char + issue["start"],
+                "sentenceEnd": start_char + issue["end"],
                 "text": issue["text"],
                 "issue": issue["issue"],
                 "sidebar": issue["issue"],
                 "replacement": issue.get("suggestion", "")
             })
+
+
 
         paged_matches = matches[offset:offset + limit]
         logging.info(f"✅ Returning {len(paged_matches)} of {len(matches)} matches (offset {offset})")
