@@ -58,6 +58,37 @@ def detect_misplaced_also_spacy(doc):
 
 def detect_they_as_company_spacy(doc):
     issues = []
+    company_words = {"company", "business", "organisation", "organization", "agency", "firm"}
+
+    sents = list(doc.sents)
+    for i, sent in enumerate(sents):
+        for token in sent:
+            if token.text.lower() == "they" and token.dep_ == "nsubj":
+                print(f"📌 Found subject: '{token.text}' at sentence {i}")
+
+                # Look back to previous sentence if there is one
+                if i > 0:
+                    prev_sent = sents[i - 1]
+                    print(f"🔍 Sentence before 'They': {prev_sent.text}")
+                    print(f"🔍 Lemmas in previous sentence: {[tok.lemma_.lower() for tok in prev_sent]}")
+
+                    if any(tok.lemma_.lower() in company_words for tok in prev_sent):
+                        print("✅ Match found — flagging 'They'")
+                        issues.append({
+                            "text": sent.text,
+                            "start": token.idx,
+                            "end": token.idx + len(token),
+                            "issue": "We say 'it' rather than 'they' to refer to a company in English.",
+                            "suggestion": sent.text.replace(token.text, "It", 1),
+                            "rule_id": 35
+                        })
+                        break
+                    else:
+                        print("❌ No company word match found in previous sentence")
+
+    return issues
+
+    issues = []
 
     company_words = {"company", "business", "organisation", "organization", "agency", "firm"}
 
