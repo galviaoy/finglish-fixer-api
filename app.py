@@ -101,6 +101,30 @@ def process_text():
     try:
         data = request.get_json()
         text = data.get("text", "")
+                # Get pagination and chunking parameters
+        offset = int(request.args.get("offset", 0))
+        limit = int(request.args.get("limit", 20))
+        chunk_index = int(request.args.get("chunkIndex", 0))
+        CHUNK_SIZE = 60000
+
+        # Slice text by chunk
+        start_char = chunk_index * CHUNK_SIZE
+        end_char = start_char + CHUNK_SIZE
+        text_chunk = text[start_char:end_char]
+
+        if not text_chunk:
+            logging.info(f"📭 No content in chunk {chunk_index}")
+            return jsonify({
+                "matches": [],
+                "total": 0,
+                "offset": offset,
+                "limit": limit,
+                "hasMore": False,
+                "chunkHasMore": False
+            })
+
+        doc = nlp(text_chunk)
+
         logging.info("✔️ /process reached and received text input")
 
         if not text:
@@ -236,8 +260,10 @@ def process_text():
             "total": len(matches),
             "offset": offset,
             "limit": limit,
-            "hasMore": offset + limit < len(matches)
+            "hasMore": offset + limit < len(matches),
+            "chunkHasMore": end_char < len(text)
         })
+
 
     except Exception as e:
         import traceback
