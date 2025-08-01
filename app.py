@@ -246,8 +246,8 @@ def process_text():
 
             matches.append({
                 "paragraphIndex": p_idx,
-                "start": issue["start"],
-                "end": issue["end"],
+                "start": start_char + issue["start"],  # 🔁 make absolute
+                "end": start_char + issue["end"],      # 🔁 make absolute   
                 "startOffsetInParagraph": issue["start"] - paragraph_offsets[p_idx],
                 "endOffsetInParagraph": issue["end"] - paragraph_offsets[p_idx],
                 "sentenceStart": issue["start"],
