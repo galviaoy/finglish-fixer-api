@@ -189,6 +189,7 @@ def process_text():
             for rule in rules:
                 if rule.get("disabled", False):
                     continue
+
                 pattern = rule.get("Regex Pattern") or rule.get("pattern")
                 suggestion = rule.get("sidebar") or rule.get("Sidebar Suggestion Text") or rule.get("suggestion") or "regex rule"
                 replacement = rule.get("Replacement Pattern") or rule.get("replacement") or ""
@@ -197,45 +198,50 @@ def process_text():
                     continue
 
                 try:
-                        for match in re.finditer(pattern, para, re.IGNORECASE):
-                            relative_start = match.start()
-                            relative_end = match.end()
-                            para_offset = paragraph_offsets[p_idx]
-                            absolute_start = para_offset + relative_start
-                            absolute_end = para_offset + relative_end
+                    for match in re.finditer(pattern, para, re.IGNORECASE):
+                        relative_start = match.start()
+                        relative_end = match.end()
+                        para_offset = paragraph_offsets[p_idx]
+                        absolute_start = para_offset + relative_start
+                        absolute_end = para_offset + relative_end
 
+                        sentence_start = 0
+                        sentence_end = len(text)
+                        for sent in sentences:
+                            if sent.start_char <= absolute_start < sent.end_char:
+                                sentence_start = sent.start_char
+                                sentence_end = sent.end_char
+                                break
 
+                        match_data = {
+                            "paragraphIndex": p_idx,
+                            "start": absolute_start,
+                            "end": absolute_end,
+                            "startOffsetInParagraph": relative_start,
+                            "endOffsetInParagraph": relative_end,
+                            "sentenceStart": sentence_start,
+                            "sentenceEnd": sentence_end,
+                            "text": match.group(),
+                            "issue": suggestion,
+                            "sidebar": rule.get("sidebar", "")
+                        }
 
-                            sentence_start = 0
-                            sentence_end = len(text)
-                            for sent in sentences:
-                                if sent.start_char <= absolute_start < sent.end_char:
-                                    sentence_start = sent.start_char
-                                    sentence_end = sent.end_char
-                                    break
+                        if replacement:
+                            match_data["replacement"] = replacement
 
-                            match_data = {
-                                "paragraphIndex": p_idx,
-                                "start": absolute_start,
-                                "end": absolute_end,
-                                "startOffsetInParagraph": relative_start,
-                                "endOffsetInParagraph": relative_end,
-                                "sentenceStart": sentence_start,
-                                "sentenceEnd": sentence_end,
-                                "text": match.group(),
-                                "issue": suggestion,
-                                "sidebar": rule.get("sidebar", "")
-                            }
+                        matches.append(match_data)
 
-                            if replacement:
-                                match_data["replacement"] = replacement
-                                
-                            matches.append(match_data)
+                        if len(matches) >= offset + limit:
+                            break  # ⬅️ exit re.finditer loop
 
+                    if len(matches) >= offset + limit:
+                        break  # ⬅️ exit rule loop
 
                 except re.error as e:
                     logging.warning(f"⚠️ Regex error in pattern: {pattern} — {e}")
+
                 # Include spaCy-based results (e.g. rule 17) in matches
+
         for issue in all_issues:
             p_idx = 0
             for i, para_offset in enumerate(paragraph_offsets):
@@ -244,10 +250,10 @@ def process_text():
                 else:
                     break
 
-            matches.append({
+            match = {
                 "paragraphIndex": p_idx,
-                "start": start_char + issue["start"],  # 🔁 make absolute
-                "end": start_char + issue["end"],      # 🔁 make absolute   
+                "start": start_char + issue["start"],
+                "end": start_char + issue["end"],
                 "startOffsetInParagraph": issue["start"] - paragraph_offsets[p_idx],
                 "endOffsetInParagraph": issue["end"] - paragraph_offsets[p_idx],
                 "sentenceStart": issue["start"],
@@ -256,7 +262,15 @@ def process_text():
                 "issue": issue["issue"],
                 "sidebar": issue["issue"],
                 "replacement": issue.get("suggestion", "")
-            })
+            }
+
+            matches.append(match)
+
+            # 🧹 Stop if we've collected enough for this page
+            if len(matches) >= offset + limit:
+                break
+
+
 
         paged_matches = matches[offset:offset + limit]
         logging.info(f"✅ Returning {len(paged_matches)} of {len(matches)} matches (offset {offset})")
