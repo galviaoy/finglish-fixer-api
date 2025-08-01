@@ -20,31 +20,24 @@ def load_rules():
     except Exception as e:
         logging.error(f"❌ Failed to load rules: {e}")
         return []
+
 # === Rule 17: Misplaced "also" (spaCy-based) ===
 def detect_misplaced_also_spacy(doc):
     issues = []
-
     for sent in doc.sents:
         main_verb = None
-
-        # Find the ROOT verb that is not a form of 'be'
         for token in sent:
             if token.dep_ == "ROOT" and token.pos_ == "VERB" and token.lemma_ != "be":
                 main_verb = token
                 break
-
         if not main_verb:
             continue
-
         for token in sent:
             if token.text.lower() == "also" and token.i > main_verb.i:
-                # Create a suggested sentence: move "also" before the main verb
                 tokens = [t for t in sent if t != token]
                 insert_index = [i for i, t in enumerate(sent) if t == main_verb][0]
                 tokens.insert(insert_index, token)
-
                 suggestion = "".join(t.text_with_ws for t in tokens).strip()
-
                 issues.append({
                     "text": sent.text,
                     "start": token.idx,
@@ -53,25 +46,18 @@ def detect_misplaced_also_spacy(doc):
                     "suggestion": suggestion,
                     "rule_id": 17
                 })
-
     return issues
 
 def detect_they_as_company_spacy(doc):
     issues = []
     company_words = {"company", "business", "organisation", "organization", "agency", "firm"}
     sents = list(doc.sents)
-
     for i, sent in enumerate(sents):
         for token in sent:
             if token.text.lower() == "they" and token.dep_ == "nsubj":
-                print(f"📌 Found subject: '{token.text}' at sentence {i}")
                 if i > 0:
                     prev_sent = sents[i - 1]
-                    print(f"🔍 Sentence before 'They': {prev_sent.text}")
-                    print(f"🔍 Lemmas in previous sentence: {[tok.lemma_.lower() for tok in prev_sent]}")
-
                     if any(tok.lemma_.lower() in company_words for tok in prev_sent):
-                        print("✅ Match found — flagging 'They'")
                         issues.append({
                             "text": sent.text,
                             "start": token.idx,
@@ -81,11 +67,7 @@ def detect_they_as_company_spacy(doc):
                             "rule_id": 35
                         })
                         break
-                    else:
-                        print("❌ No company word match found in previous sentence")
-
     return issues
-
 
 def debug_sentences(text):
     doc = nlp(text)
@@ -108,85 +90,42 @@ def process_text():
     try:
         data = request.get_json()
         text = data.get("text", "")
-                # Get pagination and chunking parameters
         offset = int(request.args.get("offset", 0))
         limit = int(request.args.get("limit", 20))
         chunk_index = int(request.args.get("chunkIndex", 0))
-        CHUNK_SIZE = 60000
-
-        # Slice text by chunk
+        CHUNK_SIZE = 30000
         start_char = chunk_index * CHUNK_SIZE
         end_char = start_char + CHUNK_SIZE
         text_chunk = text[start_char:end_char]
 
         if not text_chunk:
-            logging.info(f"📭 No content in chunk {chunk_index}")
-            return jsonify({
-                "matches": [],
-                "total": 0,
-                "offset": offset,
-                "limit": limit,
-                "hasMore": False,
-                "chunkHasMore": False
-            })
+            return jsonify({"matches": [], "total": 0, "offset": offset, "limit": limit, "hasMore": False, "chunkHasMore": False})
 
-        doc = nlp(text_chunk)
-
-        logging.info("✔️ /process reached and received text input")
-
-        if not text:
-            return jsonify({"error": "Missing 'text' in request body"}), 400
-
-        logging.info("📥 Text received, length: %d", len(text))
-
-        if len(text) > 100000:
-            logging.warning("❌ Document too long (%d characters), skipping processing", len(text))
-            return jsonify({"error": "Document too long for processing"}), 400
         debug_sentences(text_chunk)
         doc = nlp(text_chunk)
         logging.info("🧠 spaCy NLP completed")
 
-        all_issues = []
-        all_issues.extend(detect_misplaced_also_spacy(doc))
-        all_issues.extend(detect_they_as_company_spacy(doc))
-
+        all_issues = detect_misplaced_also_spacy(doc) + detect_they_as_company_spacy(doc)
         sentences = list(doc.sents)
-        logging.info("✂️ Sentences extracted: %d", len(sentences))
-
-
-        try:
-            offset = int(request.args.get("offset", 0))
-            limit = int(request.args.get("limit", 20))
-        except ValueError:
-            offset, limit = 0, 20
-
-        # Force fresh load of rules from GitHub every time (for now)
         app.cached_rules = load_rules()
-        logging.info(f"✅ Rules cached: {len(app.cached_rules)} rules")
-
-
-        # 🚧 TEMPORARY: Limit the number of rules to reduce memory usage
         rules = app.cached_rules[:50]
-        logging.info(f"📡 Rule loading returned: {type(rules)} with length {len(rules)}")
-        logging.info(f"📜 Total rules loaded: {len(rules)}")
-        if rules:
-            logging.info(f"🧪 Sample rule pattern: {rules[0].get('Regex Pattern') or rules[0].get('pattern')}")
-        else:
-            logging.warning("⚠️ No rules loaded!")
-
 
         paragraphs = text.split("\n")
         paragraph_offsets = []
         char_count = 0
         for para in paragraphs:
             paragraph_offsets.append(char_count)
-            char_count += len(para) + 1  # +1 for newline
+            char_count += len(para) + 1
 
         matches = []
-
+        stop_processing = False
 
         for p_idx, para in enumerate(paragraphs):
+            if stop_processing:
+                break
             for rule in rules:
+                if stop_processing:
+                    break
                 if rule.get("disabled", False):
                     continue
 
@@ -230,20 +169,15 @@ def process_text():
                             match_data["replacement"] = replacement
 
                         matches.append(match_data)
-
                         if len(matches) >= offset + limit:
-                            break  # ⬅️ exit re.finditer loop
-
-                    if len(matches) >= offset + limit:
-                        break  # ⬅️ exit rule loop
-
+                            stop_processing = True
+                            break
                 except re.error as e:
                     logging.warning(f"⚠️ Regex error in pattern: {pattern} — {e}")
 
-                # Include spaCy-based results (e.g. rule 17) in matches
-
-        # Include spaCy-based results (e.g. rule 17, 35) in matches
         for issue in all_issues:
+            if len(matches) >= offset + limit:
+                break
             p_idx = 0
             for i, para_offset in enumerate(paragraph_offsets):
                 if issue["start"] >= para_offset:
@@ -251,7 +185,7 @@ def process_text():
                 else:
                     break
 
-            match = {
+            matches.append({
                 "paragraphIndex": p_idx,
                 "start": start_char + issue["start"],
                 "end": start_char + issue["end"],
@@ -263,17 +197,7 @@ def process_text():
                 "issue": issue["issue"],
                 "sidebar": issue["issue"],
                 "replacement": issue.get("suggestion", "")
-            }
-
-            matches.append(match)
-
-            # ✅ Early exit to reduce memory
-            if len(matches) >= offset + limit:
-                logging.info(f"🚪 Breaking early after collecting {len(matches)} matches")
-                break
-
-
-
+            })
 
         paged_matches = matches[offset:offset + limit]
         logging.info(f"✅ Returning {len(paged_matches)} of {len(matches)} matches (offset {offset})")
@@ -287,12 +211,10 @@ def process_text():
             "chunkHasMore": end_char < len(text)
         })
 
-
     except Exception as e:
         import traceback
-        trace = traceback.format_exc()
-        logging.error(f"❌ Exception: {e}\n{trace}")
-        return jsonify({"error": str(e), "trace": trace}), 500
+        logging.error(f"❌ Exception: {e}\n{traceback.format_exc()}")
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
 if __name__ == "__main__":
     print("⚙️ Starting Flask app...")
