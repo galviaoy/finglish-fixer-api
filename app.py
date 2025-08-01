@@ -242,6 +242,7 @@ def process_text():
 
                 # Include spaCy-based results (e.g. rule 17) in matches
 
+        # Include spaCy-based results (e.g. rule 17, 35) in matches
         for issue in all_issues:
             p_idx = 0
             for i, para_offset in enumerate(paragraph_offsets):
@@ -266,9 +267,11 @@ def process_text():
 
             matches.append(match)
 
-            # 🧹 Stop if we've collected enough for this page
+            # ✅ Early exit to reduce memory
             if len(matches) >= offset + limit:
+                logging.info(f"🚪 Breaking early after collecting {len(matches)} matches")
                 break
+
 
 
 
