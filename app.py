@@ -2,6 +2,7 @@ import json
 import re
 import requests
 from flask import Flask, request, jsonify
+import os
 
 app = Flask(__name__)
 
@@ -97,5 +98,5 @@ def process_document():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    get_rules() # Pre-load rules on startup
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
