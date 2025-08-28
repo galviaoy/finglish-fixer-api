@@ -89,18 +89,31 @@ def health():
 def run_rules(text: str, offset: int = 0, limit: int = 10):
     """Return (page, has_more). Each match: {start,end,text,issue,replacement}"""
     out = []
-    for rule, creg in COMPILED:
-        try:
-            for m in creg.finditer(text):
-                out.append({
-                    "start": m.start(),
-                    "end":   m.end(),
-                    "text":  m.group(0),
-                    "issue": rule.get("sidebar") or rule.get("issue") or rule.get("item") or "",
-                    "replacement": rule.get("replacement") or rule.get("replacement_pattern") or ""
-                })
-        except Exception as e:
-            app.logger.error(f"finditer error for rule {rule.get('item')}: {e}")
+    # 🎯 FIX: Split the text into lines to process each line independently.
+    # `keepends=True` is used to maintain correct character offsets.
+    lines = text.splitlines(keepends=True)
+    current_offset = 0
+
+    for line in lines:
+        for rule, creg in COMPILED:
+            try:
+                # 💡 Apply the regex to the individual line.
+                for m in creg.finditer(line):
+                    out.append({
+                        # 🚀 CRITICAL FIX: The start and end offsets are now calculated
+                        # relative to the entire original text.
+                        "start": m.start() + current_offset,
+                        "end":   m.end() + current_offset,
+                        "text":  m.group(0),
+                        "issue": rule.get("sidebar") or rule.get("issue") or rule.get("item") or "",
+                        "replacement": rule.get("replacement") or rule.get("replacement_pattern") or ""
+                    })
+            except Exception as e:
+                app.logger.error(f"finditer error for rule {rule.get('item')}: {e}")
+
+        # Increment the offset by the length of the current line to prepare for the next.
+        current_offset += len(line)
+
     out.sort(key=lambda x: (x["start"], x["end"]))
     page = out[offset: offset + limit]
     has_more = (offset + limit) < len(out)
