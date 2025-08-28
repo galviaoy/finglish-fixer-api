@@ -24,7 +24,7 @@ def load_rules() -> list:
         return data
     except Exception as e:
         app.logger.error(f"Failed to load rules from URL: {e}")
-        # Optional: fallback to a local file
+        # Optional: fallback to local file
         local_path = os.getenv("RULES_FILE", "finglish_fixer_rules.json")
         try:
             with open(local_path, "r", encoding="utf-8") as f:
@@ -41,12 +41,29 @@ if not isinstance(RULES, list):
     RULES = []
 app.logger.info(f"RULES_COUNT={len(RULES)} FIRST_ITEMS={[r.get('item') for r in RULES[:3]]}")
 
-# --- Compile regexes ---
+# --- Compile regexes (honour inline flags) ---
+FLAG_MAP = {'i': re.IGNORECASE, 'm': re.MULTILINE, 's': re.DOTALL}
+
+def extract_inline_flags_and_body(pat: str):
+    """Parse leading inline flags like (?im), (?i), (?ms)."""
+    flags = 0
+    body = pat or ""
+    if body.startswith("(?"):
+        end = body.find(")")
+        if end != -1:
+            raw = body[2:end]
+            if raw and all(ch in "ims" for ch in raw):
+                for ch in raw:
+                    flags |= FLAG_MAP[ch]
+                body = body[end+1:]
+    return flags, body
+
 def compile_rule(rule):
     pat = rule.get("pattern", "") or ""
-    flags = 0
+    inline_flags, stripped = extract_inline_flags_and_body(pat)
+    default_flags = re.IGNORECASE | re.MULTILINE  # helpful defaults
     try:
-        return re.compile(pat, flags)
+        return re.compile(stripped, default_flags | inline_flags)
     except re.error as e:
         app.logger.error(f"Regex compile failed for item={rule.get('item')} pattern={pat!r}: {e}")
         return None
@@ -70,10 +87,7 @@ def health():
 
 # --- Core matcher ---
 def run_rules(text: str, offset: int = 0, limit: int = 10):
-    """
-    Returns (page, has_more) where page is a list of dicts:
-    {start, end, text, issue, replacement}
-    """
+    """Return (page, has_more). Each match: {start,end,text,issue,replacement}"""
     out = []
     for rule, creg in COMPILED:
         try:
@@ -108,26 +122,35 @@ def process():
     if not RULES or not COMPILED:
         return jsonify({"matches": [], "hasMore": False, "chunkHasMore": False, "error": "NO_RULES_LOADED"}), 200
 
-    # Smoke test to prove wiring if rules somehow fail
-    if "We at" in text:
-        i = text.find("We at")
-        return jsonify({
-            "matches": [{
-                "start": i,
-                "end": i + len("We at"),
-                "text": "We at",
-                "issue": "In English, 'we' usually needs context like 'here at X, we…'.",
-                "replacement": "here at X, we"
-            }],
-            "hasMore": False,
-            "chunkHasMore": False
-        })
-
     matches, has_more = run_rules(text, offset=offset, limit=limit)
     return jsonify({
         "matches": matches,
         "hasMore": has_more,
-        "chunkHasMore": False   # the client infers more chunks from doc length
+        "chunkHasMore": False
+    })
+
+# --- Debug scan endpoint (useful for quick checks) ---
+@app.post("/debug/scan")
+def debug_scan():
+    """Body: { "text": "...", "limit": 50 } -> which rules hit."""
+    data = request.get_json(silent=True) or {}
+    text = data.get("text") or ""
+    limit = int(data.get("limit") or 50)
+    hits = []
+    for rule, creg in COMPILED:
+        m = creg.search(text)
+        if m:
+            hits.append({
+                "item": rule.get("item"),
+                "first_match": m.group(0),
+                "span": [m.start(), m.end()],
+            })
+            if len(hits) >= limit:
+                break
+    return jsonify({
+        "compiled_count": len(COMPILED),
+        "hit_count": len(hits),
+        "hits": hits,
     })
 
 if __name__ == "__main__":
